@@ -805,6 +805,7 @@ tr.row:hover .del,.del:focus-visible{opacity:1}
 <input type="file" id="filePick" accept="image/*" hidden>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="models/index.js"></script>
 <script>
 /* ---------- icons (thin line, 24 grid) ---------- */
 const IC={
@@ -2565,6 +2566,162 @@ function mountScene(){const el=app.querySelector('[data-scene]');if(!el)return;i
   <div class="rgrid">${G.map((g,k)=>`<button class="rcard" data-sheet="${k}" style="background:#fff"><img src="${g.img}" alt="" loading="lazy" style="object-fit:contain"><span class="rcap"><b>${String(k+1).padStart(2,'0')}</b>${esc(g.n)}</span></button>`).join('')}</div>`:'')+
   (D.length?`<div class="phead sub2"><span class="ic">${svg('receipt')}</span><div><h2>מסמכים נוספים מהתיקייה</h2><div class="sub">מתוך התיקייה של הפרויקט בדרייב.</div></div></div>
   <ul class="docs">${D.map(d=>`<li>${ico('doc',22)}<div><b>${esc(d.t)}</b><div class="muted">${esc(d.sub)}</div></div><span class="spacer"></span><a class="btn" href="${d.href}" target="_blank" rel="noopener">${ico('eye',15)}צפייה</a></li>`).join('')}</ul>`:'')};
+})();
+
+/* ===== מודל תלת־ממד: לשונית תחת "תוכניות והדמיות" + פריט אחרון ברשימת סוגי התוכניות. המודלים נטענים מ-models/<id>.js ===== */
+(()=>{
+ const LIST=window.M3D_LIST||[];const has=id=>LIST.includes(id);
+ // פריט אחרון ברשימת סוגי התוכניות
+ const TI=PLAN_TYPES.length;PLAN_TYPES.push('מודל תלת־ממד');PT_ICON[TI]='plan';
+ projects.forEach(p=>{const L=p.portal.ptypes;if(L&&!L.some(x=>x.i===TI))L.push({i:TI,n:'מודל תלת־ממד',inc:true,has:has(p.id),v:has(p.id)?1:0,date:has(p.id)?'2026-11-17':null,approved:has(p.id),signed:null})});
+ const st=document.createElement('style');st.textContent=`.m3d{position:relative;border-radius:16px;overflow:hidden;background:linear-gradient(#F5F1EA,#E9DFD1);height:min(68vh,620px);min-height:340px;touch-action:none;cursor:grab}
+ .m3d:active{cursor:grabbing}.m3d canvas{display:block;width:100%;height:100%}
+ .m3d-bar{position:absolute;inset-inline:12px;bottom:12px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;pointer-events:none}.m3d-bar .btn{pointer-events:auto;background:#fffc;backdrop-filter:blur(6px)}
+ .m3d-leg{position:absolute;top:12px;inset-inline-start:12px;background:#fffc;border-radius:10px;padding:8px 12px;font-size:13px;display:flex;gap:14px;pointer-events:none}
+ .m3d-leg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-inline-end:6px;vertical-align:-1px}
+ .m3d-fl{position:absolute;top:12px;inset-inline-end:12px;display:flex;gap:6px}.m3d-fl .btn{background:#fffc}.m3d-fl .btn[aria-pressed=true]{background:#4B382D;color:#fff}
+ .m3d-msg{position:absolute;inset:0;display:grid;place-items:center;color:#857A6E;padding:24px;text-align:center}`;document.head.appendChild(st);
+
+ const allowed=()=>['studio','client','contractor','drafter'].includes(ROLE());
+ const FLN=['קומת קרקע','קומה א','קומה ב'];
+ function vM3d(p){const ok=has(p.id),F=LIST.filter(x=>x===p.id||x.startsWith(p.id+'-'));if(S.m3dPid!==p.id){S.m3dPid=p.id;S.m3dFloor=0}const cur=F[S.m3dFloor||0]||p.id;
+  return sh('plan','מודל תלת־ממד','המודל נבנה מתוכנית העמדת הריהוט: קירות, חלונות ורהיטים. גוררים כדי לסובב, וצובטים או גוללים כדי להתקרב. הגבהים משוערים.')+
+  (ok?`<div class="m3d" id="m3dStage" data-pid="${cur}"><div class="m3d-msg" id="m3dMsg">טוען את המודל…</div>
+   <div class="m3d-leg"><span><i style="background:#F2EBE0;border:1px solid #C7B7A3"></i>קיר קיים</span><span><i style="background:#B98F72"></i>קיר חדש</span></div>${F.length>1?`<div class="m3d-fl">${F.map((x,i)=>`<button class="btn" data-m3dfloor="${i}" aria-pressed="${i===(S.m3dFloor||0)}">${FLN[i]||'קומה '+(i+1)}</button>`).join('')}</div>`:''}
+   <div class="m3d-bar"><button class="btn" data-m3d="iso">${ico('eye',15)}מבט היקפי</button><button class="btn" data-m3d="top">${ico('plan',15)}מבט מלמעלה</button><button class="btn" data-m3d="cut">${ico('ruler',15)}קירות נמוכים</button></div></div>`
+  :`<p class="empty-st">עוד אין מודל לפרויקט הזה. המודל נבנה כשעולות תוכנית בנייה ותוכנית העמדת ריהוט.</p>`)}
+ // הלשונית: עוטפים את vFiles בלי לשנות אותו
+ const vF=vFiles;
+ vFiles=function(p){if(!allowed()){if(S.ftab==='m3d')S.ftab='set';return vF(p)}
+  const btn=on=>`<button data-ftab="m3d" aria-current="${on}">${ico('plan',16)}מודל תלת־ממד</button>`;
+  if(S.ftab==='m3d')return `<div class="subtabs">${subtFor().map(([k,n,ic])=>`<button data-ftab="${k}" aria-current="false">${ico(ic,16)}${n}</button>`).join('')}${btn(true)}</div>`+vM3d(p);
+  const h=vF(p),a='<div class="subtabs">',i=h.indexOf(a);if(i<0)return h;const j=h.indexOf('</div>',i);return h.slice(0,j)+btn(false)+h.slice(j)};
+
+ // ---- הצופה ----
+ let V=null;
+ function build(m){const T=THREE,k=.01,H=(m.wall_height||260)*k,[W,D]=m.size.map(v=>v*k);
+  const R=new T.WebGLRenderer({antialias:true,alpha:true});R.setPixelRatio(Math.min(devicePixelRatio||1,2));R.shadowMap.enabled=true;R.shadowMap.type=T.PCFSoftShadowMap;
+  const sc=new T.Scene(),cam=new T.PerspectiveCamera(38,1,.1,400);
+  sc.add(new T.HemisphereLight(0xffffff,0xcbb9a3,.62));const sun=new T.DirectionalLight(0xfff1dd,.5);sun.position.set(W*.6,H*5,D*.5);sun.castShadow=true;
+  const s=Math.max(W,D);Object.assign(sun.shadow.camera,{left:-s,right:s,top:s,bottom:-s,near:.1,far:H*12});sun.shadow.mapSize.set(2048,2048);sun.shadow.bias=-.0002;sun.shadow.normalBias=.04;sc.add(sun);
+  const floor=new T.Mesh(new T.PlaneGeometry(W+1.2,D+1.2),new T.MeshStandardMaterial({color:0xCFBFA9,roughness:1}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;sc.add(floor);
+  const g=new T.Group();sc.add(g);
+  const mat={existing:new T.MeshStandardMaterial({color:0xF2EBE0,roughness:.9}),new:new T.MeshStandardMaterial({color:0xB98F72,roughness:.85})};
+  const path=(P,pts)=>{pts.forEach(([x,y],i)=>P[i?'lineTo':'moveTo'](x*k-W/2,y*k-D/2));P.closePath();return P};
+  m.walls.forEach(w=>{const shp=path(new T.Shape(),w.outer);(w.holes||[]).forEach(h=>shp.holes.push(path(new T.Path(),h)));
+   const me=new T.Mesh(new T.ExtrudeGeometry(shp,{depth:H,bevelEnabled:false}),mat[w.kind]||mat.existing);me.rotation.x=-Math.PI/2;me.castShadow=me.receiveShadow=true;g.add(me)});
+  const FC={bed:0xEDE3D3,sofa:0xCBB59C,bench:0xCBB59C,table:0xB0906F,desk:0xB0906F,island:0xEFE9DF,counter:0xEFE9DF,tall:0xD6C4AD,wardrobe:0xD6C4AD,shelf:0xC4AD92,vanity:0xD6C4AD,washer:0xEDEDED,crib:0xF3EADC,plant:0x8FA98B,bath:0xF6F5F2,toilet:0xF6F5F2,shower:0xDCE6EA,appliance:0xEDEDED,fridge:0xD9D9D9},fm={};
+  const ext=(pts,z0,z1,mt,grp,shadow=true)=>{const me=new T.Mesh(new T.ExtrudeGeometry(path(new T.Shape(),pts),{depth:(z1-z0)*k,bevelEnabled:false}),mt);me.rotation.x=-Math.PI/2;me.position.y=z0*k;me.castShadow=shadow;me.receiveShadow=true;grp.add(me)};
+  const fg=new T.Group();sc.add(fg);
+  (m.furniture||[]).forEach(f=>ext(f.outer,0,f.h,fm[f.t]||(fm[f.t]=new T.MeshStandardMaterial({color:FC[f.t]||0xDCCDB8,roughness:.8})),fg));
+  const glass=new T.MeshStandardMaterial({color:0xBCD7E6,transparent:true,opacity:.42,roughness:.1});
+  (m.windows||[]).forEach(w=>{ext(w.outer,0,w.sill,mat.existing,g);ext(w.outer,w.head,m.wall_height||260,mat.existing,g);ext(w.outer,w.sill,w.head,glass,g,false)});
+  const o={R,sc,cam,g,th:-.7,ph:.95,r:s*1.9,tr:s*1.9,tth:-.7,tph:.95,cut:false,raf:0,H};
+  o.frame=()=>{o.th+=(o.tth-o.th)*.14;o.ph+=(o.tph-o.ph)*.14;o.r+=(o.tr-o.r)*.14;const y=o.H*(o.cut?.22:.5);
+   cam.position.set(o.r*Math.sin(o.ph)*Math.sin(o.th),y+o.r*Math.cos(o.ph),o.r*Math.sin(o.ph)*Math.cos(o.th));cam.lookAt(0,y,0);
+   const ty=o.cut?.45:1;g.scale.y+=(ty-g.scale.y)*.14;R.render(sc,cam);o.raf=requestAnimationFrame(o.frame)};
+  o.min=s*.35;o.max=s*3.2;return o}
+ function fit(){if(!V||!V.el)return;const w=V.el.clientWidth,h=V.el.clientHeight;if(!w||!h)return;V.R.setSize(w,h,false);V.cam.aspect=w/h;V.cam.updateProjectionMatrix()}
+ function stop(){if(V){cancelAnimationFrame(V.raf);V.ro&&V.ro.disconnect();V.R.domElement.remove();V.R.dispose();V=null}}
+ function start(el,m){stop();const msg=el.querySelector('#m3dMsg');
+  if(!window.THREE){msg.textContent='הדפדפן לא טען את רכיב התלת־ממד.';return}
+  try{V=build(m)}catch(e){msg.textContent='לא ניתן להציג את המודל בדפדפן הזה.';return}
+  msg.remove();V.el=el;el.prepend(V.R.domElement);fit();V.ro=new ResizeObserver(fit);V.ro.observe(el);
+  const c=V.R.domElement,pts=new Map();let pd=0;
+  c.addEventListener('pointerdown',e=>{c.setPointerCapture(e.pointerId);pts.set(e.pointerId,[e.clientX,e.clientY])});
+  c.addEventListener('pointermove',e=>{const a=pts.get(e.pointerId);if(!a||!V)return;
+   if(pts.size===1){V.tth-=(e.clientX-a[0])*.008;V.tph=Math.min(1.5,Math.max(.02,V.tph-(e.clientY-a[1])*.006))}
+   pts.set(e.pointerId,[e.clientX,e.clientY]);
+   if(pts.size===2){const [p,q]=[...pts.values()],d=Math.hypot(p[0]-q[0],p[1]-q[1]);if(pd)V.tr=Math.min(V.max,Math.max(V.min,V.tr*pd/d));pd=d}});
+  const up=e=>{pts.delete(e.pointerId);pd=0};c.addEventListener('pointerup',up);c.addEventListener('pointercancel',up);
+  c.addEventListener('wheel',e=>{e.preventDefault();if(V)V.tr=Math.min(V.max,Math.max(V.min,V.tr*(e.deltaY>0?1.1:.9)))},{passive:false});
+  V.frame()}
+ function mount(){const el=document.getElementById('m3dStage');if(!el){stop();return}if(V&&V.el===el)return;
+  const id=el.dataset.pid,go=()=>{const m=(window.M3D||{})[id];if(m&&document.getElementById('m3dStage')===el)start(el,m)};
+  if((window.M3D||{})[id])return go();
+  const s=document.createElement('script');s.src='models/'+id+'.js';s.onload=go;s.onerror=()=>{const x=el.querySelector('#m3dMsg');if(x)x.textContent='קובץ המודל לא נטען.'};document.head.appendChild(s)}
+ const r0=render;render=function(){r0();mount()};
+ document.addEventListener('click',e=>{const fb=e.target.closest('[data-m3dfloor]');if(fb){S.m3dFloor=+fb.dataset.m3dfloor;render();return}const b=e.target.closest('[data-m3d]');if(!b||!V)return;const k=b.dataset.m3d;
+  if(k==='top'){V.tph=.02;V.tth=0}else if(k==='iso'){V.tph=.95;V.tth=-.7;V.tr=V.max/1.7}else{V.cut=!V.cut;b.setAttribute('aria-pressed',V.cut)}});
+})();
+
+/* ===== תוכניות לפי תחום: שני סטטוסים לתוכנית שעוד לא עלתה, בשליטת הסטודיו. "בהכנה בסטודיו" או "לא כלול בהצעת המחיר" (עם איקס עדין) ===== */
+(()=>{
+ const MI=PLAN_TYPES.indexOf('מודל תלת־ממד');
+ // ברירת מחדל: כל תוכנית שלא עלתה נמצאת בהכנה. הסטודיו מסמן מה לא כלול.
+ projects.forEach(p=>p.portal.ptypes.forEach(x=>{x.inc=true}));
+ // אילו תוכניות כבר קיימות בסט של כל פרויקט (מספר הגיליון בסט)
+ const put=(pid,pairs,o)=>{const p=projects.find(x=>x.id===pid);if(p)pairs.forEach(([i,s])=>Object.assign(p.portal.ptypes[i],{has:true,sheet:s},o))};
+ put('pn',[[5,4],[6,5],[4,6],[7,7],[8,8],[9,9],[10,10],[11,11],[12,12],[14,14],[15,15],[13,16],[17,17],[18,18],[23,19],[20,20],[26,22]],{v:1,date:'2026-11-05',approved:true});
+ put('pm',[[4,1],[6,3],[7,5],[8,7],[9,9],[10,11]],{v:2,date:'2026-11-05',approved:false});
+ put('pa',[[5,3],[6,4],[1,5],[2,6],[10,7]],{v:1,date:'2026-11-12',approved:false});
+ // אשורי: לפי הצעת המחיר מ־29.10.2026, תכנון מטבח ותקרה בלבד
+ {const p=projects.find(x=>x.id==='pa'),ok=[1,2,5,6,10,18,19];if(p)p.portal.ptypes.forEach(x=>{if(!ok.includes(x.i)&&!x.has)x.inc=false})}
+ const st=document.createElement('style');st.textContent=`.ptc.ninc{opacity:1;border-style:dashed}.ptc.ninc>*:not(footer){opacity:.5}
+ .ptc.ninc::after{content:'';position:absolute;inset:12px;pointer-events:none;border-radius:10px;--x:color-mix(in srgb,var(--greige) 50%,transparent);
+  background:linear-gradient(to top right,transparent calc(50% - .7px),var(--x) calc(50% - .7px),var(--x) calc(50% + .7px),transparent calc(50% + .7px)),linear-gradient(to top left,transparent calc(50% - .7px),var(--x) calc(50% - .7px),var(--x) calc(50% + .7px),transparent calc(50% + .7px))}
+ .pt-st{display:inline-flex;align-self:flex-start;align-items:center;gap:6px;font-size:13px;margin-top:8px;padding:4px 10px;border-radius:999px;background:var(--tint);color:var(--bronze)}
+ .pt-st.no{background:transparent;border:1px dashed var(--greige);color:var(--muted)}
+ .pt-seg{display:flex;flex:1 1 100%;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--raise)}
+ .pt-seg button{flex:1;border:0;background:transparent;font:inherit;font-size:12.5px;padding:7px 8px;color:var(--muted);cursor:pointer}
+ .pt-seg button[aria-pressed=true]{background:var(--walnut);color:#fff}`;document.head.appendChild(st);
+ vPTypes=function(p){const L=p.portal.ptypes,r=ROLE(),stu=r==='studio';const vis=stu||r==='client'?L:L.filter(x=>x.has&&x.approved);const n=k=>L.filter(k).length;
+  return sh('plan','תוכניות לפי תחום',stu?'לכל תוכנית שעוד לא עלתה בוחרים סטטוס: בהכנה בסטודיו, או לא כלול בהצעת המחיר. הלקוח רואה את הסטטוס שנבחר.':r==='client'?'כל תוכנית בנפרד. תוכנית באפור נמצאת בהכנה בסטודיו. תוכנית עם איקס אינה כלולה בהצעת המחיר שלכם.':'התוכניות שאושרו לביצוע.')+
+  `<div class="nflow"><span class="muted">${n(x=>x.has)} תוכניות הועלו</span><i></i><span class="muted">${n(x=>!x.has&&x.inc)} בהכנה בסטודיו</span><i></i><span class="muted">${n(x=>!x.has&&!x.inc)} לא כלולות בהצעת המחיר</span><i></i><span class="muted">${n(x=>x.approved&&x.has)} מאושרות לביצוע</span></div>
+  <div class="ptg">${vis.map(x=>{const c=x.has?(x.approved?'ok':'wait'):x.inc?'off':'ninc',m3=x.i===MI,sheet=x.has&&x.sheet&&(p.portal.sheets||[])[x.sheet-1];
+   const foot=(stu&&!x.has&&!m3?`<div class="pt-seg" role="group" aria-label="סטטוס התוכנית"><button data-ptst="${x.i}:1" aria-pressed="${x.inc}">בהכנה בסטודיו</button><button data-ptst="${x.i}:0" aria-pressed="${!x.inc}">לא כלול בהצעה</button></div>`:'')+
+    (m3?(x.has?`<button class="btn primary" data-ftab="m3d">${ico('eye',15)}פתיחת המודל</button>`:''):
+     (sheet?`<button class="btn" data-sheet="${x.sheet-1}">${ico('eye',15)}צפייה</button>`:'')+(x.has||(stu&&x.inc)?planActions(x,'t'+x.i,'שליחה לספק'):''));
+   return `<article class="ptc ${c}"><header><span class="ptc-ic">${svg(PT_ICON[x.i]||'plan')}</span><span class="ptc-no num">${String(x.i+1).padStart(2,'0')}</span></header>
+   <h4>${esc(x.n)}</h4>${x.has?`<div class="muted">גרסה ${x.v} · ${dshort(x.date)}</div><div class="ptc-st">${okBadge(x.approved)}${x.signed?`<span class="sgn">${ico('sign',14)}נחתם על ידי ${esc(x.signed.by)} · ${dshort(x.signed.date)}</span>`:x.approved&&!m3?`<span class="sgn no">${ico('sign',14)}ממתין לחתימת הלקוח</span>`:''}</div>`
+    :x.inc?`<span class="pt-st">${ico('time',14)}בהכנה בסטודיו</span>`:`<span class="pt-st no">לא כלול בהצעת המחיר</span>`}
+   ${foot?`<footer>${foot}</footer>`:''}</article>`}).join('')||'<p class="empty-st" style="grid-column:1/-1">עוד אין תוכניות מאושרות לביצוע.</p>'}</div>`};
+ document.addEventListener('click',e=>{const b=e.target.closest('[data-ptst]');if(!b||ROLE()!=='studio')return;const [i,v]=b.dataset.ptst.split(':');
+  const x=P().portal.ptypes.find(t=>t.i===+i);if(x){x.inc=v==='1';render();toast(x.inc?'סומן: בהכנה בסטודיו':'סומן: לא כלול בהצעת המחיר')}});
+})();
+
+/* ===== לשוניות המשנה של "תוכניות והדמיות" כריבועים עם אייקון, בסדר קבוע: מדידה, סט מלא, לפי תחום, הדמיות, השראות, כתבי כמויות, מודל תלת־ממד ===== */
+(()=>{
+ const ORDER=['survey','set','plans','renders','inspo','boq','m3d'];
+ const st=document.createElement('style');st.textContent=`.subtabs.tiles{display:flex!important;flex-wrap:wrap;gap:10px;background:none!important;border:0!important;box-shadow:none!important;padding:16px 24px 0!important;overflow:visible!important}
+ .subtabs.tiles.top{padding:22px 0 0!important}
+ .subtabs.tiles button{width:98px;min-height:88px;display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:10px 6px!important;border-radius:16px!important;border:1px solid var(--line)!important;background:var(--raise)!important;font-size:12.5px!important;line-height:1.2;text-align:center;white-space:normal!important;color:var(--fg)!important;transition:transform .2s,box-shadow .2s}
+ .subtabs.tiles button:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+ .subtabs.tiles button svg{width:26px;height:26px;color:var(--bronze);flex:none}
+ .subtabs.tiles button[aria-current=true]{background:var(--walnut)!important;border-color:var(--walnut)!important;color:#fff!important}
+ .subtabs.tiles button[aria-current=true] svg{color:#fff}
+ .rv:has(.rvi){opacity:1!important;transform:none!important}
+ .mb.mb2{margin-top:18px;margin-bottom:6px}
+ .mb.mb2 .mb-row{display:block!important;overflow:visible!important;padding:0!important}
+ .mb2 .mb-lbl{display:block;font-size:12px;letter-spacing:.06em;color:var(--muted);margin:16px 0 10px}
+ .mb2 .mb-lbl:first-child{margin-top:0}
+ .mb2 .mb-mats,.mb2 .pal-row{display:grid!important;grid-auto-flow:column;grid-auto-columns:minmax(0,88px);gap:14px;justify-content:start;align-items:start}
+ .mb2 .mb-o{max-width:none!important}
+ .mb2 .pal-row span{display:block!important;min-width:0}
+ .mb2 .pal-row i{display:block!important;width:100%!important;max-width:none!important;height:auto!important;aspect-ratio:1;margin:0!important;border-radius:50%}
+ @media(max-width:640px){.mb2 .mb-mats,.mb2 .pal-row{grid-auto-flow:row;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:10px}}
+ @media(max-width:520px){.subtabs.tiles{gap:8px}.subtabs.tiles button{width:calc((100% - 24px)/4);min-height:80px;font-size:11.5px!important}}
+ .subtabs.tiles{gap:10px 2px}
+ .subtabs.tiles button{width:94px;min-height:0;border:0!important;background:none!important;box-shadow:none!important;padding:2px!important;gap:9px;border-radius:0!important;color:var(--muted)!important;font-weight:500}
+ .subtabs.tiles button:hover{transform:none;box-shadow:none}
+ .subtabs.tiles button svg{width:58px;height:58px;padding:17px;box-sizing:border-box;border-radius:50%;border:1px solid var(--line2);background:var(--raise);color:var(--bronze);stroke-width:1.5;transition:background .25s,color .25s,border-color .25s}
+ .subtabs.tiles button:hover svg{border-color:var(--bronze)}
+ .subtabs.tiles button[aria-current=true]{background:none!important;border:0!important;color:var(--walnut)!important;font-weight:600}
+ .subtabs.tiles button[aria-current=true] svg{background:var(--walnut);border-color:var(--walnut);color:#F5F1EA}
+ @media(max-width:520px){.subtabs.tiles button{width:calc((100% - 6px)/4)!important;min-height:0!important}.subtabs.tiles button svg{width:52px;height:52px;padding:15px}}`;document.head.appendChild(st);
+ const tidy=()=>document.querySelectorAll('.subtabs').forEach(box=>{const bs=[...box.querySelectorAll(':scope>button[data-ftab]')];if(!bs.length)return;
+  if(!bs.some(b=>b.dataset.ftab==='m3d')&&['studio','client','contractor','drafter'].includes(ROLE())){box.insertAdjacentHTML('beforeend',`<button data-ftab="m3d" aria-current="false">${ico('plan',16)}מודל תלת־ממד</button>`);bs.push(box.lastElementChild)}
+  bs.sort((a,b)=>{const i=ORDER.indexOf(a.dataset.ftab),j=ORDER.indexOf(b.dataset.ftab);return (i<0?99:i)-(j<0?99:j)}).forEach(b=>box.appendChild(b));box.classList.add('tiles')});
+ // גלריית המבטים בתוך אזור: המחלקה rv משמשת בדשבורד גם לאנימציית כניסה שמשאירה אותה שקופה למחצה. כאן היא תמיד בצבע מלא
+ const full=()=>document.querySelectorAll('.rv').forEach(e=>{if(e.querySelector('.rvi'))e.classList.add('in')});
+ // לוח החומרים והגוונים: עולה לראש הדף (לפני ההדמיות או ההשראות), בשתי שורות בלי גלילה לצדדים: חומרים, ואחריהם גוונים וצבעים
+ const mood=()=>document.querySelectorAll('section.mb:not(.mb2)').forEach(sec=>{const row=sec.querySelector('.mb-row');if(!row)return;sec.classList.add('mb2');
+  const grid=sec.parentElement.querySelector('.ra-grid');if(grid&&(grid.compareDocumentPosition(sec)&Node.DOCUMENT_POSITION_FOLLOWING))grid.before(sec);
+  const mats=document.createElement('div');mats.className='mb-mats';row.querySelectorAll(':scope>figure.mb-c').forEach(f=>mats.appendChild(f));
+  row.querySelector('.mb-sep')?.remove();const pal=row.querySelector('.pal-row');
+  const lbl=t=>{const s=document.createElement('small');s.className='mb-lbl';s.textContent=t;return s};
+  row.prepend(lbl('חומרים וטקסטורות'),mats);if(pal)pal.before(lbl('גוונים וצבעים'))});
+ const r1=render;render=function(){r1();tidy();full();mood()};
 })();
 
 Object.assign(S,{mode:'studio',view:'home',pid:'p1',tab:'overview',cat:'summary',ftab:'set'});
